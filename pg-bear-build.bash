@@ -1,13 +1,29 @@
 #!/bin/bash
 
 set -e -u -o pipefail
+set -x
 
-rebuild() {
+build() {
 	local directory=$1
 
-	git -C "${directory}" pull --ff-only
+	git_pull_with_backoff
 	gmake -s clean -C "${directory}/src/interfaces"
 	bear --cdb "${directory}/compile_commands.json" --append gmake -s -j"${NCPU}" -l"${MAXLOAD}" --output-sync -C "${directory}"
+}
+
+git_pull() {
+	git -C "${directory}" pull --ff-only
+}
+
+git_pull_with_backoff() {
+	git_pull && return 0
+	local -i x=2
+	while [ $x -gt 0 ]; do
+		x-=1
+		sleep $((RANDOM % 4 + 1))
+		git_pull && return 0
+	done
+	false
 }
 
 _main() {
@@ -32,8 +48,8 @@ _main() {
 	fi
 
 	NCPU=$(sysctl -n hw.ncpu)
-	MAXLOAD=$(( 2 * NCPU ))
-	rebuild "${directory}"
+	MAXLOAD=$(( 3 * NCPU ))
+	build "${directory}"
 }
 
 
