@@ -2,21 +2,21 @@
 
 set -e -u -o pipefail
 
-rebuild() {
-	local directory=$1
+declare DIRECTORY
+declare -i NCPU
+declare -i MAXLOAD
 
-	git -C "${directory}" pull --ff-only
-	gmake -s clean -C "${directory}/src/interfaces"
-	bear_make -s -j"${NCPU}" -l"${MAXLOAD}" --output-sync -C "${directory}"
+rebuild() {
+	git -C "${DIRECTORY}" pull --ff-only
+	gmake -s clean -C "${DIRECTORY}/src/interfaces"
+	bear_make -s -j"${NCPU}" -l"${MAXLOAD}" --output-sync -C "${DIRECTORY}"
 }
 
 _main() {
-	local directory
-
 	while getopts C: opt; do
 		case $opt in
 			C)
-				directory=$OPTARG
+				DIRECTORY=$OPTARG
 				;;
 			*)
 				printf >&2 'Unexpected argument\n'
@@ -25,7 +25,7 @@ _main() {
 		esac
 	done
 
-	if [ "${directory:+x}" != x ]; then
+	if [ "${DIRECTORY:+x}" != x ]; then
 		echo >&2 You need to specify a directory with -C
 
 		false
@@ -33,7 +33,11 @@ _main() {
 
 	NCPU=$(ncpu)
 	MAXLOAD=$(( 2 * NCPU ))
-	rebuild "${directory}"
+	readonly DIRECTORY
+	readonly NCPU
+	readonly MAXLOAD
+
+	rebuild
 }
 
 ncpu() {
@@ -41,7 +45,7 @@ ncpu() {
 }
 
 bear_append() {
-	command bear --cdb "${directory}/compile_commands.json" --append "$@"
+	command bear --cdb "${DIRECTORY}/compile_commands.json" --append "$@"
 }
 
 if [ "$(uname)" = Linux ]; then
