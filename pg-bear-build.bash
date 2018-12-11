@@ -7,6 +7,13 @@ declare -i REBUILD=0
 declare -i NCPU
 declare -i MAXLOAD
 
+shopt -s expand_aliases
+alias bear_append='bear --cdb "${COMPDB}" --append '
+
+if [ "$(uname)" = Linux ]; then
+	alias gmake=make
+fi
+
 build() {
 	git_pull_with_backoff
 	if (( REBUILD == 1 )); then
@@ -15,7 +22,7 @@ build() {
 	else
 		gmake -s clean -C "${DIRECTORY}/src/interfaces"
 	fi
-	bear_make -s -j"${NCPU}" -l"${MAXLOAD}" --output-sync -C "${DIRECTORY}"
+	bear_append gmake -s -j"${NCPU}" -l"${MAXLOAD}" --output-sync -C "${DIRECTORY}"
 }
 
 git_pull_with_backoff() {
@@ -70,28 +77,5 @@ _main() {
 ncpu() {
 	getconf _NPROCESSORS_ONLN
 }
-
-bear_append() {
-	command bear --cdb "${COMPDB}" --append "$@"
-}
-
-if [ "$(uname)" = Linux ]; then
-	gmake() {
-		command make "$@"
-	}
-
-	bear_make() {
-		bear_append make "$@"
-	}
-
-else
-	gmake() {
-		command gmake "$@"
-	}
-
-	bear_make() {
-		bear_append gmake "$@"
-	}
-fi
 
 _main "$@"
