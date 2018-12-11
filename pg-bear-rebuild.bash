@@ -7,7 +7,7 @@ rebuild() {
 
 	git -C "${directory}" pull --ff-only
 	gmake -s clean -C "${directory}/src/interfaces"
-	bear --cdb "${directory}/compile_commands.json" --append gmake -s -j"${NCPU}" -l"${MAXLOAD}" --output-sync -C "${directory}"
+	bear_make -s -j"${NCPU}" -l"${MAXLOAD}" --output-sync -C "${directory}"
 }
 
 _main() {
@@ -31,10 +31,36 @@ _main() {
 		false
 	fi
 
-	NCPU=$(sysctl -n hw.ncpu)
+	NCPU=$(ncpu)
 	MAXLOAD=$(( 2 * NCPU ))
 	rebuild "${directory}"
 }
 
+ncpu() {
+	getconf _NPROCESSORS_ONLN
+}
+
+bear_append() {
+	command bear --cdb "${directory}/compile_commands.json" --append "$@"
+}
+
+if [ "$(uname)" = Linux ]; then
+	gmake() {
+		command make "$@"
+	}
+
+	bear_make() {
+		bear_append make "$@"
+	}
+
+else
+	gmake() {
+		command gmake "$@"
+	}
+
+	bear_make() {
+		bear_append gmake "$@"
+	}
+fi
 
 _main "$@"
