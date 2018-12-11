@@ -7,9 +7,23 @@ declare -i NCPU
 declare -i MAXLOAD
 
 rebuild() {
-	git -C "${DIRECTORY}" pull --ff-only
+	git_pull_with_backoff
 	gmake -s clean -C "${DIRECTORY}/src/interfaces"
 	bear_make -s -j"${NCPU}" -l"${MAXLOAD}" --output-sync -C "${DIRECTORY}"
+}
+
+git_pull_with_backoff() {
+	git_pull && return 0
+	local -i i
+	for (( i = 0; i < 2; ++i )); do
+		sleep $((RANDOM % 4 + 1))
+		git_pull && return 0
+	done
+	false
+}
+
+git_pull() {
+	git -C "${DIRECTORY}" pull --ff-only
 }
 
 _main() {
