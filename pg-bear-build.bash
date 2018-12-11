@@ -2,13 +2,19 @@
 
 set -e -u -o pipefail
 
-declare DIRECTORY
+declare DIRECTORY COMPDB
+declare -i REBUILD=0
 declare -i NCPU
 declare -i MAXLOAD
 
-rebuild() {
+build() {
 	git_pull_with_backoff
-	gmake -s clean -C "${DIRECTORY}/src/interfaces"
+	if (( REBUILD == 1 )); then
+		gmake -s clean -C "${DIRECTORY}"
+		rm -f "${COMPDB}"
+	else
+		gmake -s clean -C "${DIRECTORY}/src/interfaces"
+	fi
 	bear_make -s -j"${NCPU}" -l"${MAXLOAD}" --output-sync -C "${DIRECTORY}"
 }
 
@@ -27,10 +33,13 @@ git_pull() {
 }
 
 _main() {
-	while getopts C: opt; do
+	while getopts C:r opt; do
 		case $opt in
 			C)
 				DIRECTORY=$OPTARG
+				;;
+			r)
+				REBUILD=1
 				;;
 			*)
 				printf >&2 'Unexpected argument\n'
@@ -45,13 +54,17 @@ _main() {
 		false
 	fi
 
+	COMPDB=${DIRECTORY}/compile_commands.json
 	NCPU=$(ncpu)
 	MAXLOAD=$(( 2 * NCPU ))
-	readonly DIRECTORY
+
+	readonly DIRECTORY COMPDB
+	readonly REBUILD
 	readonly NCPU
 	readonly MAXLOAD
 
-	rebuild
+	set -x
+	build
 }
 
 ncpu() {
@@ -59,7 +72,7 @@ ncpu() {
 }
 
 bear_append() {
-	command bear --cdb "${DIRECTORY}/compile_commands.json" --append "$@"
+	command bear --cdb "${COMPDB}" --append "$@"
 }
 
 if [ "$(uname)" = Linux ]; then
